@@ -898,7 +898,7 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
       id, title: title.trim(), creator: creator.trim(), description: description.trim(),
       images: images.split(",").map((path) => path.trim()).filter(Boolean),
       linkUrl: safeLink,
-      apk: safeApkUrl ? { url: safeApkUrl, size: apkSize.trim(), version: apkVersion.trim(), sha256: apkSha.trim() } : null,
+      ...(safeApkUrl ? { apk: { url: safeApkUrl, size: apkSize.trim(), version: apkVersion.trim(), sha256: apkSha.trim() } } : {}),
       extras: parsedExtras, order: Number(order), visible,
     });
     return undefined;
@@ -914,10 +914,11 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
       <label>Link redirect (HTTPS)<input onChange={(event) => setLinkUrl(event.target.value)} type="url" value={linkUrl} /></label>
       <label>Urutan<input min="1" onChange={(event) => setOrder(event.target.value)} type="number" value={order} /></label>
       <label className="span-two">Info tambahan (satu pasang Label=Nilai per baris)<textarea onChange={(event) => setExtras(event.target.value)} placeholder={"Tahun=2026\nTools=Blender"} value={extras} /></label>
-      <label>Link APK (HTTPS)<input onChange={(event) => setApkUrl(event.target.value)} type="url" value={apkUrl} /></label>
-      <label>Ukuran APK<input onChange={(event) => setApkSize(event.target.value)} placeholder="24 MB" value={apkSize} /></label>
-      <label>Versi APK<input onChange={(event) => setApkVersion(event.target.value)} value={apkVersion} /></label>
-      <label>SHA-256<input onChange={(event) => setApkSha(event.target.value)} value={apkSha} /></label>
+      <p className="panel-footnote span-two">Aplikasi opsional. Kalau karya tidak punya aplikasi, biarkan semua kolom APK kosong.</p>
+      <label>Link APK (opsional, HTTPS)<input onChange={(event) => setApkUrl(event.target.value)} type="url" value={apkUrl} /></label>
+      <label>Ukuran APK (wajib jika link APK diisi)<input onChange={(event) => setApkSize(event.target.value)} placeholder="24 MB" value={apkSize} /></label>
+      <label>Versi APK (opsional)<input onChange={(event) => setApkVersion(event.target.value)} value={apkVersion} /></label>
+      <label>SHA-256 (opsional)<input onChange={(event) => setApkSha(event.target.value)} value={apkSha} /></label>
     </div>
     <label className="check-label"><input checked={visible} onChange={(event) => setVisible(event.target.checked)} type="checkbox" /> Tampilkan ke publik</label>
     {error && <p className="error-message" role="alert">{error}</p>}
