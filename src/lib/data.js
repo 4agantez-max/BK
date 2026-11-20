@@ -255,7 +255,8 @@ export async function fetchAdminSnapshot() {
 
 export async function saveWork(work) {
   if (firebaseReady) {
-    await setDoc(doc(db, "works", work.id), work);
+    const { id, ...workData } = work;
+    await setDoc(doc(db, "works", id), workData);
     return;
   }
   const works = getDemoWorks();
