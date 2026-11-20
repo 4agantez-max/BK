@@ -225,9 +225,6 @@ function Footer() {
   const { t, language } = useLanguage();
   return (
     <footer className="site-footer">
-      <div className="footer-bubbles" aria-hidden="true">
-        {Array.from({ length: 8 }, (_, index) => <span key={index} />)}
-      </div>
       <div className="container">
         <div className="footer-grid">
           <p className="footer-tag">{language === "en" ? "Dive in, find your calm" : "Menyelam ke dalam, menemukan ketenangan"}</p>
@@ -369,6 +366,9 @@ function HomePage() {
         </section>
 
         <section className="gallery-section" id="works">
+          <div className="gallery-bubbles" aria-hidden="true">
+            {Array.from({ length: 8 }, (_, index) => <span key={index} />)}
+          </div>
           <div className="container">
             <div className="section-heading">
               <h2>{t.works}</h2>
