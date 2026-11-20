@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env*
+!.env.example
+*.pem
+*serviceAccount*.json
+firebase-debug.log
+.DS_Store
