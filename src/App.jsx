@@ -223,8 +223,38 @@ function LanguageSwitcher() {
 
 function Footer() {
   const { t, language } = useLanguage();
+  const footerRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const footer = footerRef.current;
+    const works = document.getElementById("works");
+    if (!footer || !works) return undefined;
+
+    const updateBubbleDistance = () => {
+      const distance = footer.getBoundingClientRect().bottom - works.getBoundingClientRect().top;
+      footer.style.setProperty("--bubble-rise-distance", `${Math.max(0, distance)}px`);
+    };
+
+    updateBubbleDistance();
+    const main = footer.previousElementSibling;
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateBubbleDistance);
+    if (observer) {
+      observer.observe(footer);
+      if (main) observer.observe(main);
+    }
+    window.addEventListener("resize", updateBubbleDistance);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateBubbleDistance);
+    };
+  }, []);
+
   return (
-    <footer className="site-footer">
+    <footer className="site-footer" ref={footerRef}>
+      <div className="footer-bubbles" aria-hidden="true">
+        {Array.from({ length: 8 }, (_, index) => <span key={index} />)}
+      </div>
       <div className="container">
         <div className="footer-grid">
           <p className="footer-tag">{language === "en" ? "Dive in, find your calm" : "Menyelam ke dalam, menemukan ketenangan"}</p>
@@ -366,9 +396,6 @@ function HomePage() {
         </section>
 
         <section className="gallery-section" id="works">
-          <div className="gallery-bubbles" aria-hidden="true">
-            {Array.from({ length: 8 }, (_, index) => <span key={index} />)}
-          </div>
           <div className="container">
             <div className="section-heading">
               <h2>{t.works}</h2>
