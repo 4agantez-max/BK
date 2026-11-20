@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env*
+!.env.example
+*.pem
+*serviceAccount*.json
+firestore.rules
+README.md
+PRD Website Pameran Karya.md
+style.md
+firebase-debug.log
+.DS_Store
