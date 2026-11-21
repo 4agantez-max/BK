@@ -24,7 +24,7 @@ Login ini hanya untuk demo lokal. Jangan gunakan sebagai autentikasi produksi.
 4. Aktifkan provider Google di Firebase Console > Authentication > Sign-in method dan pastikan domain lokal serta domain deployment ada di daftar authorized domains.
 5. Buat dokumen `admins/{email}` di Firestore lewat Console, dengan ID dokumen berupa email Google admin yang terverifikasi (huruf kecil). Tidak perlu membuat akun admin secara manual di Authentication; pengguna akan dibuat saat pertama kali login dengan Google. Hanya email terverifikasi yang tercatat di koleksi `admins` yang dapat mengakses data admin.
 6. Deploy `firestore.rules` dan `firestore.indexes.json` dari Firebase Console atau Firebase CLI. Buat dokumen `settings/config` dengan field `feedbackOpen: true` dan konfigurasi `questions` yang sama dengan `src/data/works.js`.
-7. Tambahkan dokumen karya ke koleksi `works`. Bentuk field mengikuti objek contoh di `src/data/works.js`; field dokumen `works` menggunakan `title`, `creator`, `description`, `images`, `linkUrl`, `apk`, `extras`, `chapters`, `order`, dan `visible`.
+7. Tambahkan dokumen karya ke koleksi `works`. Bentuk field mengikuti objek contoh di `src/data/works.js`; field dokumen `works` menggunakan `title`, `creator`, `description`, `images`, `linkUrl`, `apk`, `extras`, `features`, `chapters`, `order`, dan `visible`.
 8. Di Google Cloud Console, batasi API key Firebase ke domain GitHub Pages dan localhost serta API yang diperlukan. Jangan mengandalkan kerahasiaan API key frontend.
 
 UI tidak menyediakan sign-up. Akses admin tetap harus dilindungi melalui Firebase Auth **dan** Security Rules; hanya menyembunyikan halaman admin bukan kontrol keamanan.
@@ -46,7 +46,7 @@ Uji rules sebagai pengunjung anonim dan admin menggunakan Firebase Emulator atau
 - Simpan gambar di `public/uploads/images/` dan APK di `public/uploads/apps/` pada repository GitHub. Foldernya sudah disiapkan. Tambahkan file melalui tombol **Add file → Upload files** di GitHub, lalu commit perubahan ke branch `main`.
 - Di form karya admin, pilih **Pilih gambar dari GitHub** atau **Pilih aplikasi dari GitHub**. Daftar file dibaca dari repository `4agantez-max/BK`; pilih file lalu simpan karya. Repository harus public agar website dapat membaca daftar dan menampilkan file.
 - Cara ini tidak memakai Firebase Storage, Cloud Functions, atau GitHub token. File dan URL-nya bersifat publik. Jika ukuran APK di atas 25 MB, gunakan GitHub Desktop atau `git push`; batas satu file GitHub adalah 100 MB.
-- Path gambar lama seperti `images/karya-01.webp` dan link aplikasi HTTPS tetap didukung. Admin juga dapat menambah subbab teks pada halaman detail karya.
+- Path gambar lama seperti `images/karya-01.webp` dan link aplikasi HTTPS tetap didukung. Admin juga dapat menambah bagian fitur (judul dan deskripsi opsional) serta subbab teks pada halaman detail karya.
 
 ## Deploy GitHub Pages
 

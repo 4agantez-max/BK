@@ -577,6 +577,19 @@ function WorkPage() {
           <h1>{work.title}</h1>
           <p className="creator"><span aria-hidden="true">✦</span> {work.creator}</p>
           <p className="description">{work.description}</p>
+          {work.features?.filter((feature) => typeof feature.title === "string" && feature.title.trim()).length > 0 && (
+            <section className="work-features" aria-label={language === "id" ? "Fitur karya" : "Work features"}>
+              <h2>{language === "id" ? "Fitur" : "Features"}</h2>
+              <ul>
+                {work.features.filter((feature) => typeof feature.title === "string" && feature.title.trim()).map((feature, index) => (
+                  <li key={`${feature.title}-${index}`}>
+                    <strong>{feature.title}</strong>
+                    {typeof feature.description === "string" && feature.description.trim() && <p>{feature.description}</p>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {work.chapters?.filter((chapter) => chapter.title?.trim() && chapter.content?.trim()).length > 0 && (
             <section className="work-chapters" aria-label={language === "id" ? "Subbab karya" : "Work chapters"}>
               {work.chapters.filter((chapter) => chapter.title?.trim() && chapter.content?.trim()).map((chapter, index) => (
@@ -927,6 +940,12 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
   const [apkVersion, setApkVersion] = useState(initial?.apk?.version || "");
   const [apkSha, setApkSha] = useState(initial?.apk?.sha256 || "");
   const [extras, setExtras] = useState((initial?.extras || []).map((item) => `${item.label}=${item.value}`).join("\n"));
+  const [features, setFeatures] = useState(Array.isArray(initial?.features)
+    ? initial.features.map((feature) => ({
+      title: typeof feature.title === "string" ? feature.title : "",
+      description: typeof feature.description === "string" ? feature.description : "",
+    }))
+    : []);
   const [chapters, setChapters] = useState(initial?.chapters || []);
   const [order, setOrder] = useState(initial?.order || 1);
   const [visible, setVisible] = useState(initial?.visible ?? true);
@@ -982,10 +1001,15 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
       const [label, ...rest] = line.split("=");
       return { label: label.trim(), value: rest.join("=").trim() };
     }).filter((item) => item.label && item.value);
+    const parsedFeatures = features.map((feature) => ({
+      title: feature.title.trim(),
+      description: feature.description.trim(),
+    })).filter((feature) => feature.title);
     const parsedChapters = chapters.map((chapter) => ({
       title: chapter.title.trim(),
       content: chapter.content.trim(),
     })).filter((chapter) => chapter.title && chapter.content);
+    if (parsedFeatures.length > 20) return setError("Maksimal 20 fitur per karya.");
     if (parsedChapters.length > 20) return setError("Maksimal 20 subbab per karya.");
     onSave({
       id, title: title.trim(), creator: creator.trim(), description: description.trim(),
@@ -993,6 +1017,7 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
       linkUrl: safeLink,
       ...(safeApkUrl ? { apk: { url: safeApkUrl, size: apkSize.trim(), version: apkVersion.trim(), sha256: apkSha.trim() } } : {}),
       extras: parsedExtras,
+      ...(parsedFeatures.length ? { features: parsedFeatures } : {}),
       ...(parsedChapters.length ? { chapters: parsedChapters } : {}),
       order: Number(order), visible,
     });
@@ -1013,6 +1038,16 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
       <label>Link redirect (HTTPS)<input onChange={(event) => setLinkUrl(event.target.value)} type="url" value={linkUrl} /></label>
       <label>Urutan<input min="1" onChange={(event) => setOrder(event.target.value)} type="number" value={order} /></label>
       <label className="span-two">Info tambahan (satu pasang Label=Nilai per baris)<textarea onChange={(event) => setExtras(event.target.value)} placeholder={"Tahun=2026\nTools=Blender"} value={extras} /></label>
+      <div className="span-two chapter-editor">
+        <div className="panel-heading"><div><h3>Fitur karya</h3><p className="panel-footnote">Tambahkan poin fitur yang ingin ditampilkan pada halaman karya.</p></div>
+          <button className="button button-outline" disabled={features.length >= 20} onClick={() => setFeatures((current) => [...current, { title: "", description: "" }])} type="button">+ Tambah fitur</button>
+        </div>
+        {features.map((feature, index) => <div className="chapter-fields" key={index}>
+          <label>Nama fitur<input onChange={(event) => setFeatures((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item))} value={feature.title} /></label>
+          <label>Deskripsi fitur (opsional)<textarea onChange={(event) => setFeatures((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item))} value={feature.description} /></label>
+          <button className="text-button danger-text" onClick={() => setFeatures((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button">Hapus fitur</button>
+        </div>)}
+      </div>
       <div className="span-two chapter-editor">
         <div className="panel-heading"><div><h3>Subbab halaman karya</h3><p className="panel-footnote">Tambahkan bagian seperti konsep, proses, atau makna karya.</p></div>
           <button className="button button-outline" disabled={chapters.length >= 20} onClick={() => setChapters((current) => [...current, { title: "", content: "" }])} type="button">+ Tambah subbab</button>

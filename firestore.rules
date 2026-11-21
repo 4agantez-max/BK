@@ -28,7 +28,7 @@ service cloud.firestore {
     function validWork(data) {
       return data.keys().hasOnly([
           'title', 'creator', 'description', 'images', 'linkUrl', 'apk',
-            'extras', 'chapters', 'order', 'visible'
+            'extras', 'features', 'chapters', 'order', 'visible'
         ])
         && data.title is string && data.title.size() > 0 && data.title.size() <= 120
         && data.creator is string && data.creator.size() > 0 && data.creator.size() <= 100
@@ -48,6 +48,7 @@ service cloud.firestore {
             && (data.apk.sha256 == '' || data.apk.sha256.matches('[A-Fa-f0-9]{64}'))))
         ))
         && data.extras is list && data.extras.size() <= 20
+        && (!('features' in data) || (data.features is list && data.features.size() <= 20))
         && (!('chapters' in data) || (data.chapters is list && data.chapters.size() <= 20));
     }
 
