@@ -987,7 +987,9 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
       images: images.split(",").map((path) => path.trim()).filter(Boolean),
       linkUrl: safeLink,
       ...(safeApkUrl ? { apk: { url: safeApkUrl, size: apkSize.trim(), version: apkVersion.trim(), sha256: apkSha.trim() } } : {}),
-      extras: parsedExtras, chapters: parsedChapters, order: Number(order), visible,
+      extras: parsedExtras,
+      ...(parsedChapters.length ? { chapters: parsedChapters } : {}),
+      order: Number(order), visible,
     });
     return undefined;
   }
