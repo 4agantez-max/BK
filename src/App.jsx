@@ -929,16 +929,17 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
   const [assetCategory, setAssetCategory] = useState("");
   const [assets, setAssets] = useState([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
+  const [assetError, setAssetError] = useState("");
 
   async function openAssetPicker(category) {
     setAssetCategory(category);
     setAssets([]);
-    setError("");
+    setAssetError("");
     setLoadingAssets(true);
     try {
       setAssets(await fetchGitHubAssets(category));
     } catch (cause) {
-      setError(cause.message || "Daftar file GitHub gagal dimuat.");
+      setAssetError(cause.message || "Daftar file GitHub gagal dimuat.");
     } finally {
       setLoadingAssets(false);
     }
@@ -1033,7 +1034,8 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
           </div>
         </div>
         {loadingAssets && <p role="status">Memuat daftar file...</p>}
-        {!loadingAssets && !assets.length && <p>Belum ada file yang cocok. Tambahkan file ke folder GitHub di atas.</p>}
+        {assetError && <p className="error-message" role="alert">{assetError}</p>}
+        {!loadingAssets && !assetError && !assets.length && <p>Belum ada file yang cocok. Tambahkan file ke folder GitHub di atas.</p>}
         <div className="github-asset-list">
           {assets.map((asset) => {
             const selected = assetCategory === "images"
