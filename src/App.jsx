@@ -454,6 +454,11 @@ function HomePage() {
 function Artwork({ work, compact = false }) {
   const [imageFailed, setImageFailed] = useState(false);
   const imagePath = work.images?.[0];
+  const imageSrc = imagePath
+    ? /^https:\/\//i.test(imagePath)
+      ? imagePath
+      : imagePath.startsWith("/") ? `.${imagePath}` : `./${imagePath}`
+    : "";
   return (
     <div className={`artwork ${compact ? "artwork-compact" : ""}`}>
       {!imageFailed && imagePath && (
@@ -461,7 +466,7 @@ function Artwork({ work, compact = false }) {
           alt={`${work.title} — ${work.creator}`}
           loading={compact ? "lazy" : "eager"}
           onError={() => setImageFailed(true)}
-          src={imagePath.startsWith("/") ? `.${imagePath}` : `./${imagePath}`}
+          src={imageSrc}
         />
       )}
       {(imageFailed || !imagePath) && <div className={`artwork-placeholder artwork-${(work.order || 1) % 6 + 1}`} aria-hidden="true"><span>{work.title}</span></div>}
