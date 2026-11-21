@@ -1,0 +1,160 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+    }
+
+    function feedbackIsOpen() {
+      let config = get(/databases/$(database)/documents/settings/config).data;
+      return config.feedbackOpen == true
+        && (!('startAt' in config) || config.startAt == null || request.time >= config.startAt)
+        && (!('endAt' in config) || config.endAt == null || request.time <= config.endAt);
+    }
+
+    function canTrackWork(workId) {
+      return workId.matches('[a-z0-9-]{1,120}')
+        && exists(/databases/$(database)/documents/works/$(workId))
+        && get(/databases/$(database)/documents/works/$(workId)).data.visible == true;
+    }
+
+    function validWork(data) {
+      return data.keys().hasOnly([
+          'title', 'creator', 'description', 'images', 'linkUrl', 'apk',
+            'extras', 'chapters', 'order', 'visible'
+        ])
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 120
+        && data.creator is string && data.creator.size() > 0 && data.creator.size() <= 100
+        && data.description is string && data.description.size() <= 5000
+        && data.images is list && data.images.size() <= 12
+        && data.order is int && data.order >= 0
+        && data.visible is bool
+        && (!('linkUrl' in data) || (data.linkUrl is string
+          && (data.linkUrl == '' || data.linkUrl.matches('https://.*'))))
+        && (!('apk' in data) || data.apk == null || (
+          data.apk is map
+          && data.apk.keys().hasOnly(['url', 'size', 'version', 'sha256'])
+          && data.apk.url is string && data.apk.url.matches('https://.*')
+          && data.apk.size is string && data.apk.size.size() > 0 && data.apk.size.size() <= 40
+          && (!('version' in data.apk) || (data.apk.version is string && data.apk.version.size() <= 40))
+          && (!('sha256' in data.apk) || (data.apk.sha256 is string
+            && (data.apk.sha256 == '' || data.apk.sha256.matches('[A-Fa-f0-9]{64}'))))
+        ))
+        && data.extras is list && data.extras.size() <= 20
+        && (!('chapters' in data) || (data.chapters is list && data.chapters.size() <= 20));
+    }
+
+    function validWorkComment(data) {
+      return data.keys().hasOnly(['name', 'text', 'approved', 'hidden', 'createdAt'])
+        && data.name is string && data.name.size() <= 50
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 500
+        && data.approved == false
+        && data.hidden == false
+        && data.createdAt == request.time;
+    }
+
+    function validExhibitionFeedback(data) {
+      return data.keys().hasOnly(['name', 'rating', 'answers', 'comment', 'approved', 'createdAt'])
+        && data.name is string && data.name.size() <= 50
+        && data.rating is int && data.rating >= 1 && data.rating <= 5
+        && data.answers is map
+        && data.answers.keys().hasOnly(['discovery', 'favorite', 'usability'])
+        && (!('discovery' in data.answers) || (data.answers.discovery is string && data.answers.discovery.size() <= 100))
+        && (!('favorite' in data.answers) || (data.answers.favorite is string && data.answers.favorite.size() <= 100))
+        && (!('usability' in data.answers) || (data.answers.usability is string && data.answers.usability.size() <= 100))
+        && data.comment is string && data.comment.size() <= 500
+        && data.approved == false
+        && data.createdAt == request.time;
+    }
+
+    match /admins/{email} {
+      allow get: if signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == email;
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /works/{workId} {
+      allow read: if isAdmin() || resource.data.visible == true;
+      allow create: if isAdmin() && validWork(request.resource.data);
+      allow update: if isAdmin() && validWork(request.resource.data);
+      allow delete: if isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if isAdmin() || (resource.data.approved == true && resource.data.hidden == false);
+        allow create: if validWorkComment(request.resource.data)
+          && feedbackIsOpen()
+          && commentId.matches(workId + '_[A-Za-z0-9-]{1,100}')
+          && get(/databases/$(database)/documents/works/$(workId)).data.visible == true;
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    match /exhibitionFeedback/{visitorId} {
+      allow read: if isAdmin();
+      allow create: if validExhibitionFeedback(request.resource.data)
+        && feedbackIsOpen()
+        && visitorId.matches('[A-Za-z0-9-]{1,100}');
+      allow update, delete: if isAdmin();
+    }
+
+    match /publicFeedbackComments/{visitorId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /visitors/{visitorId} {
+      allow read: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(['firstSeen', 'lastSeen', 'visitCount'])
+        && visitorId.matches('[A-Za-z0-9-]{1,100}')
+        && request.resource.data.firstSeen == request.time
+        && request.resource.data.lastSeen == request.time
+        && request.resource.data.visitCount == 1;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen', 'visitCount'])
+        && visitorId.matches('[A-Za-z0-9-]{1,100}')
+        && request.resource.data.lastSeen == request.time
+        && request.resource.data.visitCount == resource.data.visitCount + 1;
+      allow delete: if isAdmin();
+    }
+
+    match /stats/{statId} {
+      allow read: if isAdmin();
+      allow create: if (statId == 'global'
+        && request.resource.data.keys().hasOnly(['totalVisits', 'uniqueVisitors'])
+        && request.resource.data.totalVisits == 1
+        && (!('uniqueVisitors' in request.resource.data) || request.resource.data.uniqueVisitors == 1))
+        || (statId.matches('works_[a-z0-9-]{1,120}')
+          && request.resource.data.keys().hasOnly(['workId', 'views'])
+          && statId == 'works_' + request.resource.data.workId
+          && canTrackWork(request.resource.data.workId)
+          && request.resource.data.views == 1);
+      allow update: if (statId == 'global'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalVisits', 'uniqueVisitors'])
+        && request.resource.data.totalVisits == resource.data.totalVisits + 1
+        && (!('uniqueVisitors' in request.resource.data.diff(resource.data).affectedKeys())
+          || request.resource.data.uniqueVisitors == resource.data.uniqueVisitors + 1))
+        || (statId.matches('works_[a-z0-9-]{1,120}')
+          && statId == 'works_' + request.resource.data.workId
+          && resource.data.workId == request.resource.data.workId
+          && canTrackWork(request.resource.data.workId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+          && request.resource.data.views == resource.data.views + 1);
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingsId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && settingsId == 'config';
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -196,6 +196,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .detail-copy h1 { margin: 0; color: var(--ink); font-family: "Anton",Impact,sans-serif; font-size: clamp(40px,5.2vw,64px); font-weight: 400; line-height: .98; text-transform: uppercase; overflow-wrap: anywhere; }
 .creator { display: inline-flex; align-items: center; gap: 7px; margin: 16px 0 0; padding: 8px 13px; border-radius: 999px; color: var(--denim); background: #e8f1f3; font-family: "Oswald","Arial Narrow",sans-serif; font-size: 16px; }
 .description { max-width: 65ch; margin-top: 24px; color: #435761; font-size: 15px; line-height: 1.85; }
+.work-chapters { display: grid; gap: 14px; margin-block: 22px; }
+.work-chapters article { padding: 17px; border-left: 3px solid var(--denim); border-radius: 0 12px 12px 0; background: #f0f4f5; }
+.work-chapters h2 { margin: 0 0 8px; color: var(--deep); font-family: "Oswald","Arial Narrow",sans-serif; font-size: 20px; font-weight: 500; }
+.work-chapters p { margin: 0; color: #435761; font-size: 14px; line-height: 1.75; white-space: pre-wrap; }
 .work-extras { display: grid; gap: 8px; margin: 22px 0; }
 .work-extras > div { display: grid; grid-template-columns: 100px 1fr; gap: 10px; padding: 12px 14px; border: 0; border-radius: 10px; background: #f0f4f5; }
 .work-extras dt { font-weight: 700; }
@@ -301,6 +305,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .editor-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
 .editor-grid label { display: grid; gap: 6px; }
 .editor-grid .span-two { grid-column: span 2; }
+.chapter-editor { padding-top: 8px; border-top: 1px solid rgba(18,63,102,.1); }
+.chapter-editor .panel-heading { margin-top: 12px; }
+.chapter-editor h3 { margin: 0; color: var(--deep); font-family: "Oswald","Arial Narrow",sans-serif; font-size: 19px; font-weight: 500; }
+.chapter-fields { display: grid; gap: 10px; margin-block: 12px; padding: 14px; border-radius: 12px; background: #f4f7f8; }
+.chapter-fields label { display: grid; gap: 6px; }
+.chapter-fields .text-button { justify-self: start; }
+.asset-picker-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.asset-picker-actions small { color: #637078; font-size: 12px; }
+.github-asset-picker { padding: 15px; border: 1px solid rgba(18,63,102,.1); border-radius: 12px; background: #f8fafb; }
+.github-asset-picker .panel-heading { align-items: center; }
+.github-asset-picker h3 { margin: 0; color: var(--deep); font-family: "Oswald","Arial Narrow",sans-serif; font-size: 19px; font-weight: 500; }
+.github-asset-list { display: grid; gap: 7px; max-height: 260px; overflow-y: auto; }
+.github-asset-option { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid rgba(18,63,102,.1); border-radius: 8px; color: var(--ink); background: white; text-align: left; }
+.github-asset-option:disabled { color: #637078; background: #edf2f4; }
+.github-asset-option span { overflow-wrap: anywhere; }
+.github-asset-option small { flex: 0 0 auto; color: #637078; }
 .check-label { display: flex !important; align-items: center; gap: 9px; margin-block: 18px; font-weight: 700; }
 .check-label input { width: 18px; height: 18px; accent-color: var(--denim); }
 .editor-form .modal-actions { margin-top: 18px; }

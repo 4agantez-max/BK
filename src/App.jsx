@@ -31,7 +31,8 @@ import {
   trackVisit,
   verifyAdminUser,
 } from "./lib/data.js";
-import { appCheckReady, firebaseReady } from "./lib/firebase.js";
+import { firebaseReady } from "./lib/firebase.js";
+import { fetchGitHubAssets } from "./lib/githubAssets.js";
 
 const LanguageContext = createContext(null);
 const languages = {
@@ -571,6 +572,16 @@ function WorkPage() {
           <h1>{work.title}</h1>
           <p className="creator"><span aria-hidden="true">✦</span> {work.creator}</p>
           <p className="description">{work.description}</p>
+          {work.chapters?.filter((chapter) => chapter.title?.trim() && chapter.content?.trim()).length > 0 && (
+            <section className="work-chapters" aria-label={language === "id" ? "Subbab karya" : "Work chapters"}>
+              {work.chapters.filter((chapter) => chapter.title?.trim() && chapter.content?.trim()).map((chapter, index) => (
+                <article key={`${chapter.title}-${index}`}>
+                  <h2>{chapter.title}</h2>
+                  <p>{chapter.content}</p>
+                </article>
+              ))}
+            </section>
+          )}
           {work.extras?.filter((item) => item.label && item.value).length > 0 && (
             <dl className="work-extras">
               {work.extras.filter((item) => item.label && item.value).map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
@@ -701,6 +712,12 @@ function formatDate(value, language = "id") {
   return new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en", { dateStyle: "medium" }).format(date);
 }
 
+function formatFileSize(bytes) {
+  return bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function AdminPage() {
   const { language } = useLanguage();
   const [user, setUser] = useState(() => currentDemoAdmin());
@@ -769,7 +786,6 @@ function AdminPage() {
       </div></header>
       <main className="container admin-main">
         {!firebaseReady && <div className="demo-banner" role="note">Mode demo aktif. Data dan sesi tersimpan sementara di tab ini; Firebase belum dikonfigurasi.</div>}
-        {firebaseReady && !appCheckReady && <div className="demo-banner" role="alert">App Check belum dikonfigurasi di frontend. Periksa setup sebelum mengaktifkan enforcement Firestore.</div>}
         <nav className="admin-tabs" aria-label="Menu admin">
           {[["dashboard", "Ringkasan"], ["works", "Karya"], ["comments", `Komentar (${pendingComments.length})`], ["feedback", `Feedback (${pendingFeedback.length})`], ["settings", "Pengaturan"]].map(([key, label]) => (
             <button aria-current={activeTab === key ? "page" : undefined} className={activeTab === key ? "active" : ""} key={key} onClick={() => setActiveTab(key)} type="button">{label}</button>
@@ -891,7 +907,7 @@ function WorksAdmin({ works, onRefresh }) {
     <div className="admin-table"><table><thead><tr><th>Urutan</th><th>Judul / Kreator</th><th>Status</th><th>Link</th><th>Aksi</th></tr></thead><tbody>
       {works.map((work) => <tr key={work.id}><td>{work.order}</td><td><strong>{work.title}</strong><small>{work.creator}</small></td><td><StatusBadge kind={work.visible ? "approved" : "hidden"} status={work.visible ? "Tampil" : "Disembunyikan"} /></td><td>{work.linkUrl || work.apk?.url ? "Ada" : "—"}</td><td><div className="table-actions"><button className="text-button" onClick={() => setEditing(work)} type="button">Ubah</button><button className="text-button" onClick={() => toggle(work)} type="button">{work.visible ? "Sembunyikan" : "Tampilkan"}</button><button className="text-button danger-text" onClick={() => remove(work)} type="button">Hapus</button></div></td></tr>)}
     </tbody></table></div>
-    <p className="panel-footnote">Gambar tidak diunggah di sini. Commit gambar teroptimasi ke <code>public/images/</code>, lalu masukkan path-nya.</p>
+    <p className="panel-footnote">Tambahkan gambar secara manual ke <code>public/uploads/images/</code> di GitHub, lalu pilih dari editor karya.</p>
   </section>;
 }
 
@@ -906,9 +922,45 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
   const [apkVersion, setApkVersion] = useState(initial?.apk?.version || "");
   const [apkSha, setApkSha] = useState(initial?.apk?.sha256 || "");
   const [extras, setExtras] = useState((initial?.extras || []).map((item) => `${item.label}=${item.value}`).join("\n"));
+  const [chapters, setChapters] = useState(initial?.chapters || []);
   const [order, setOrder] = useState(initial?.order || 1);
   const [visible, setVisible] = useState(initial?.visible ?? true);
   const [error, setError] = useState("");
+  const [assetCategory, setAssetCategory] = useState("");
+  const [assets, setAssets] = useState([]);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+
+  async function openAssetPicker(category) {
+    setAssetCategory(category);
+    setAssets([]);
+    setError("");
+    setLoadingAssets(true);
+    try {
+      setAssets(await fetchGitHubAssets(category));
+    } catch (cause) {
+      setError(cause.message || "Daftar file GitHub gagal dimuat.");
+    } finally {
+      setLoadingAssets(false);
+    }
+  }
+
+  function chooseAsset(asset) {
+    setError("");
+    if (assetCategory === "images") {
+      const currentImages = images.split(",").map((path) => path.trim()).filter(Boolean);
+      if (currentImages.includes(asset.url)) return;
+      if (currentImages.length >= 12) {
+        setError("Maksimal 12 gambar per karya.");
+        return;
+      }
+      setImages([...currentImages, asset.url].join(", "));
+    } else {
+      setApkUrl(asset.url);
+      setApkSize(formatFileSize(asset.size));
+      setApkSha("");
+      setAssetCategory("");
+    }
+  }
 
   function submit(event) {
     event.preventDefault();
@@ -924,12 +976,17 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
       const [label, ...rest] = line.split("=");
       return { label: label.trim(), value: rest.join("=").trim() };
     }).filter((item) => item.label && item.value);
+    const parsedChapters = chapters.map((chapter) => ({
+      title: chapter.title.trim(),
+      content: chapter.content.trim(),
+    })).filter((chapter) => chapter.title && chapter.content);
+    if (parsedChapters.length > 20) return setError("Maksimal 20 subbab per karya.");
     onSave({
       id, title: title.trim(), creator: creator.trim(), description: description.trim(),
       images: images.split(",").map((path) => path.trim()).filter(Boolean),
       linkUrl: safeLink,
       ...(safeApkUrl ? { apk: { url: safeApkUrl, size: apkSize.trim(), version: apkVersion.trim(), sha256: apkSha.trim() } } : {}),
-      extras: parsedExtras, order: Number(order), visible,
+      extras: parsedExtras, chapters: parsedChapters, order: Number(order), visible,
     });
     return undefined;
   }
@@ -941,14 +998,53 @@ function WorkEditor({ initial, busy, onCancel, onSave }) {
       <label>Kreator *<input onChange={(event) => setCreator(event.target.value)} required value={creator} /></label>
       <label className="span-two">Deskripsi<textarea onChange={(event) => setDescription(event.target.value)} value={description} /></label>
       <label className="span-two">Path gambar (pisahkan dengan koma)<input onChange={(event) => setImages(event.target.value)} placeholder="images/karya-01.webp" value={images} /></label>
+      <div className="span-two asset-picker-actions">
+        <button className="button button-outline" disabled={busy || loadingAssets} onClick={() => openAssetPicker("images")} type="button">Pilih gambar dari GitHub</button>
+        <small>File harus sudah ada di <code>public/uploads/images/</code>.</small>
+      </div>
       <label>Link redirect (HTTPS)<input onChange={(event) => setLinkUrl(event.target.value)} type="url" value={linkUrl} /></label>
       <label>Urutan<input min="1" onChange={(event) => setOrder(event.target.value)} type="number" value={order} /></label>
       <label className="span-two">Info tambahan (satu pasang Label=Nilai per baris)<textarea onChange={(event) => setExtras(event.target.value)} placeholder={"Tahun=2026\nTools=Blender"} value={extras} /></label>
-      <p className="panel-footnote span-two">Aplikasi opsional. Kalau karya tidak punya aplikasi, biarkan semua kolom APK kosong.</p>
+      <div className="span-two chapter-editor">
+        <div className="panel-heading"><div><h3>Subbab halaman karya</h3><p className="panel-footnote">Tambahkan bagian seperti konsep, proses, atau makna karya.</p></div>
+          <button className="button button-outline" disabled={chapters.length >= 20} onClick={() => setChapters((current) => [...current, { title: "", content: "" }])} type="button">+ Tambah subbab</button>
+        </div>
+        {chapters.map((chapter, index) => <div className="chapter-fields" key={index}>
+          <label>Judul subbab<input onChange={(event) => setChapters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item))} value={chapter.title} /></label>
+          <label>Isi subbab<textarea onChange={(event) => setChapters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, content: event.target.value } : item))} value={chapter.content} /></label>
+          <button className="text-button danger-text" onClick={() => setChapters((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button">Hapus subbab</button>
+        </div>)}
+      </div>
+      <p className="panel-footnote span-two">Tambahkan APK secara manual ke <code>public/uploads/apps/</code> di GitHub. Pengunjung dapat mengunduh APK dari halaman karya.</p>
+      <div className="span-two asset-picker-actions">
+        <button className="button button-outline" disabled={busy || loadingAssets} onClick={() => openAssetPicker("apps")} type="button">Pilih aplikasi dari GitHub</button>
+        <small>File harus sudah ada di <code>public/uploads/apps/</code>.</small>
+      </div>
       <label>Link APK (opsional, HTTPS)<input onChange={(event) => setApkUrl(event.target.value)} type="url" value={apkUrl} /></label>
       <label>Ukuran APK (wajib jika link APK diisi)<input onChange={(event) => setApkSize(event.target.value)} placeholder="24 MB" value={apkSize} /></label>
       <label>Versi APK (opsional)<input onChange={(event) => setApkVersion(event.target.value)} value={apkVersion} /></label>
       <label>SHA-256 (opsional)<input onChange={(event) => setApkSha(event.target.value)} value={apkSha} /></label>
+      {assetCategory && <section className="span-two github-asset-picker">
+        <div className="panel-heading">
+          <div><h3>{assetCategory === "images" ? "Pilih gambar" : "Pilih aplikasi"}</h3><p className="panel-footnote">Daftar dibaca dari repository GitHub.</p></div>
+          <div className="asset-picker-actions">
+            <button className="text-button" disabled={loadingAssets} onClick={() => openAssetPicker(assetCategory)} type="button">Muat ulang</button>
+            <button className="text-button" onClick={() => setAssetCategory("")} type="button">Tutup</button>
+          </div>
+        </div>
+        {loadingAssets && <p role="status">Memuat daftar file...</p>}
+        {!loadingAssets && !assets.length && <p>Belum ada file yang cocok. Tambahkan file ke folder GitHub di atas.</p>}
+        <div className="github-asset-list">
+          {assets.map((asset) => {
+            const selected = assetCategory === "images"
+              ? images.split(",").map((path) => path.trim()).includes(asset.url)
+              : apkUrl === asset.url;
+            return <button className="github-asset-option" disabled={selected} key={asset.url} onClick={() => chooseAsset(asset)} type="button">
+              <span>{asset.name}</span><small>{selected ? "Sudah dipilih" : formatFileSize(asset.size)}</small>
+            </button>;
+          })}
+        </div>
+      </section>}
     </div>
     <label className="check-label"><input checked={visible} onChange={(event) => setVisible(event.target.checked)} type="checkbox" /> Tampilkan ke publik</label>
     {error && <p className="error-message" role="alert">{error}</p>}
